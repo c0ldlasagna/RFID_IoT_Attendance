@@ -1,38 +1,26 @@
 #include "notifications.h"
+#include "HardwareSerial.h"
 #include "esp32-hal-ledc.h"
 #include "Adafruit_NeoPixel.h"
 #include "freertos/idf_additions.h"
 
-static int buzzer_pin;
-static int led_pin;
-static Adafruit_NeoPixel pixel;
-
-void init_notifications(int buzzerPin, int builtinLEDPin, rgb_config_t rgbLED){
-    buzzer_pin = buzzerPin;
-    led_pin = builtinLEDPin;
-
-    ledcAttach(buzzer_pin, 1000, 14);
-    pixel = Adafruit_NeoPixel(1,led_pin,NEO_GRB+NEO_KHZ800);
-
-}
-
-void success_notification(){
+void NotificationClass::notify_success(){
     note_t tones[2] = {NOTE_G,NOTE_E};
-    for(int i = 0;i<2;i++){
+        for(int i = 0;i<2;i++){
 
-        pixel.setPixelColor(0,0,50,0);
-        pixel.show();
-        ledcWriteNote(buzzer_pin, tones[i],5+i);
-        vTaskDelay(pdMS_TO_TICKS(100));
+            pixel.setPixelColor(0,0,50,0);
+            pixel.show();
+            ledcWriteNote(buzzer_pin, tones[i],5+i);
+            vTaskDelay(pdMS_TO_TICKS(100));
 
-        pixel.setPixelColor(0,0,0,0);
-        pixel.show();
-        ledcWriteTone(buzzer_pin, 0);
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }
+            pixel.setPixelColor(0,0,0,0);
+            pixel.show();
+            ledcWriteTone(buzzer_pin, 0);
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
 }
 
-void fail_notification(){
+void NotificationClass::notify_failure(){
     note_t tones[2] = {NOTE_Cs,NOTE_C};
     for(int i = 0;i<2;i++){
 
@@ -48,8 +36,24 @@ void fail_notification(){
     }
 }
 
-void disconnect_notification(){
-    int tones[5] = {1000,900,800,700,600};
+bool RGB_LED::begin(){
+    if(!ledcAttach(r, 10000, 8)){
+        Serial.println("Failed to attach pin R");
+        return false;
+    }
+    if(!ledcAttach(g, 10000, 8)){
+        Serial.println("Failed to attach pin G");
+        return false;        
+    }
+    if(!ledcAttach(b, 10000, 8)){
+        Serial.println("Failed to attach pin B");
+        return false;        
+    }
+    return true;
+}
+
+void NotificationClass::notify_disconnected(){
+int tones[5] = {1000,900,800,700,600};
     for(int i = 0; i<5; i++){
         pixel.setPixelColor(0,50,50,0);
         pixel.show();
@@ -63,25 +67,39 @@ void disconnect_notification(){
     }
 }
 
-TaskHandle_t notification_loop_handle = nullptr;
-void notification_loop(void* pvParameters){
+bool NotificationClass::begin(int buzzer_pin, int builtinLEDPin, RGB_LED rgbLED){
+    this->buzzer_pin = buzzer_pin;
+    this->pixel = Adafruit_NeoPixel(1,
+                                    builtinLEDPin,
+                                    NEO_GRB+NEO_KHZ800);
+    if(!ledcAttach(buzzer_pin, 1000, 14)){
+        Serial.println("Failed to attach Buzzer");
+        return false;
+    }
+    if(!rgbLED.begin()){
+        return false;
+    }
+    return true;
+};
+
+NotificationClass Notification;
+
+TaskHandle_t notification_task_handle = nullptr;
+void notification_task(void* pvParameters){
     uint32_t ulNotificationValue;
     for(;;){
         xTaskNotifyWait(0, ULONG_MAX, &ulNotificationValue, portMAX_DELAY);
-        switch(ulNotificationValue){
-            case ATTENDANCE_ACCEPTED:
-                success_notification();
-                break;
-
-            case ATTENDANCE_REJECTED:
-                disconnect_notification();
-                break;
-
-            case ATTENDANCE_FAILED:
-                fail_notification();
-                break;
+        Notification.notify((notification_type_t)ulNotificationValue);
         }
-    }
 }
+
+void notifs_begin(){
+    xTaskCreate(notification_task,
+                "notification_task",
+                4096,
+                NULL,
+                2,
+                &notification_task_handle);
+};
 
 
