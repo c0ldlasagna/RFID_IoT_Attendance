@@ -3,14 +3,7 @@
 #include "Adafruit_NeoPixel.h"
 #include "freertos/idf_additions.h"
 #include <cstdint>
-
-// Struct for external RGB LED configuration
-typedef struct{
-    int r;
-    int g;
-    int b;
-    bool begin();
-}RGB_LED;
+#include "RGB_LED.h"
 
 enum class Attendance_status:uint8_t{
     Present,
