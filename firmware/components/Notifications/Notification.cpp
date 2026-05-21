@@ -4,6 +4,17 @@
 #include "Adafruit_NeoPixel.h"
 #include "freertos/idf_additions.h"
 
+NotificationClass Notification;
+
+TaskHandle_t notification_task_handle = nullptr;
+void notification_task(void* pvParameters){
+    uint32_t ulNotificationValue;
+    for(;;){
+        xTaskNotifyWait(0, ULONG_MAX, &ulNotificationValue, portMAX_DELAY);
+        Notification.notify((notification_type_t)ulNotificationValue);
+        }
+}
+
 void NotificationClass::notify_success(){
     note_t tones[2] = {NOTE_G,NOTE_E};
         for(int i = 0;i<2;i++){
@@ -36,22 +47,6 @@ void NotificationClass::notify_failure(){
     }
 }
 
-bool RGB_LED::begin(){
-    if(!ledcAttach(r, 10000, 8)){
-        Serial.println("Failed to attach pin R");
-        return false;
-    }
-    if(!ledcAttach(g, 10000, 8)){
-        Serial.println("Failed to attach pin G");
-        return false;        
-    }
-    if(!ledcAttach(b, 10000, 8)){
-        Serial.println("Failed to attach pin B");
-        return false;        
-    }
-    return true;
-}
-
 void NotificationClass::notify_disconnected(){
 int tones[5] = {1000,900,800,700,600};
     for(int i = 0; i<5; i++){
@@ -67,6 +62,7 @@ int tones[5] = {1000,900,800,700,600};
     }
 }
 
+
 bool NotificationClass::begin(int buzzer_pin, int builtinLEDPin, RGB_LED rgbLED){
     this->buzzer_pin = buzzer_pin;
     this->pixel = Adafruit_NeoPixel(1,
@@ -79,27 +75,13 @@ bool NotificationClass::begin(int buzzer_pin, int builtinLEDPin, RGB_LED rgbLED)
     if(!rgbLED.begin()){
         return false;
     }
-    return true;
-};
-
-NotificationClass Notification;
-
-TaskHandle_t notification_task_handle = nullptr;
-void notification_task(void* pvParameters){
-    uint32_t ulNotificationValue;
-    for(;;){
-        xTaskNotifyWait(0, ULONG_MAX, &ulNotificationValue, portMAX_DELAY);
-        Notification.notify((notification_type_t)ulNotificationValue);
-        }
-}
-
-void notifs_begin(){
+    
     xTaskCreate(notification_task,
                 "notification_task",
                 4096,
                 NULL,
-                2,
+                1,
                 &notification_task_handle);
+                
+    return true;
 };
-
-
