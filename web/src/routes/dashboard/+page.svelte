@@ -29,6 +29,7 @@
 
     const sessionColumns = [
         {key:"id",label:"ID"},
+        {key:"status",label:"Status"},
         {key:"start_time",label:"Start Time"},
         {key:"end_time",label:"End Time"}
     ]
