@@ -39,8 +39,8 @@
 RGB_LED rgb_led{19,20,21};
 
 // WiFi Information
-#define SSID    "hassanminar1003"
-#define PASSWD  "eliasadil1708"
+#define SSID    "ssid"
+#define PASSWD  "password"
 
 // Networking Information
 String SERVER_URL = "http://192.168.68.60:5173";
